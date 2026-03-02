@@ -22,6 +22,7 @@ const { seeds } = storeToRefs(farmStore)
 const saving = ref(false)
 const passwordSaving = ref(false)
 const offlineSaving = ref(false)
+const offlineTesting = ref(false)
 
 const modalVisible = ref(false)
 const modalConfig = ref({
@@ -53,6 +54,10 @@ const localSettings = ref({
   friendQuietHours: { enabled: false, start: '23:00', end: '07:00' },
   automation: {
     farm: false,
+    farm_manage: false,
+    farm_water: false,
+    farm_weed: false,
+    farm_bug: false,
     task: false,
     sell: false,
     friend: false,
@@ -104,6 +109,10 @@ function syncLocalSettings() {
     if (!localSettings.value.automation) {
       localSettings.value.automation = {
         farm: false,
+        farm_manage: false,
+        farm_water: false,
+        farm_weed: false,
+        farm_bug: false,
         task: false,
         sell: false,
         friend: false,
@@ -128,6 +137,10 @@ function syncLocalSettings() {
       // Merge with defaults to ensure all keys exist
       const defaults = {
         farm: false,
+        farm_manage: false,
+        farm_water: false,
+        farm_weed: false,
+        farm_bug: false,
         task: false,
         sell: false,
         friend: false,
@@ -239,8 +252,9 @@ const CHANNEL_DOCS: Record<string, string> = {
 
 const reloginUrlModeOptions = [
   { label: '不需要', value: 'none' },
-  { label: 'QQ直链', value: 'qq_link' },
-  { label: '二维码链接', value: 'qr_link' },
+  { label: '链接', value: 'qq_link' },
+  { label: '二维码', value: 'qr_code' },
+  { label: '二维码+链接', value: 'all' },
 ]
 
 const currentChannelDocUrl = computed(() => {
@@ -382,6 +396,26 @@ async function handleSaveOffline() {
     offlineSaving.value = false
   }
 }
+
+async function handleTestOffline() {
+  offlineTesting.value = true
+  try {
+    const { data } = await api.post('/api/settings/offline-reminder/test', localOffline.value)
+    if (data?.ok) {
+      showAlert('测试消息发送成功')
+    }
+    else {
+      showAlert(`测试失败: ${data?.error || '未知错误'}`, 'danger')
+    }
+  }
+  catch (e: any) {
+    const msg = e?.response?.data?.error || e?.message || '请求失败'
+    showAlert(`测试失败: ${msg}`, 'danger')
+  }
+  finally {
+    offlineTesting.value = false
+  }
+}
 </script>
 
 <template>
@@ -494,6 +528,7 @@ async function handleSaveOffline() {
           <!-- Switches Grid -->
           <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
             <BaseSwitch v-model="localSettings.automation.farm" label="自动种植收获" />
+            <BaseSwitch v-model="localSettings.automation.farm_manage" label="自动打理农场" />
             <BaseSwitch v-model="localSettings.automation.task" label="自动做任务" />
             <BaseSwitch v-model="localSettings.automation.sell" label="自动卖果实" />
             <BaseSwitch v-model="localSettings.automation.friend" label="自动好友互动" />
@@ -510,6 +545,12 @@ async function handleSaveOffline() {
           </div>
 
           <!-- Sub-controls -->
+          <div v-if="localSettings.automation.farm_manage" class="flex flex-wrap gap-4 rounded bg-emerald-50 p-2 text-sm dark:bg-emerald-900/20">
+            <BaseSwitch v-model="localSettings.automation.farm_water" label="自动浇水" />
+            <BaseSwitch v-model="localSettings.automation.farm_bug" label="自动除虫" />
+            <BaseSwitch v-model="localSettings.automation.farm_weed" label="自动除草" />
+          </div>
+
           <div v-if="localSettings.automation.friend" class="flex flex-wrap gap-4 rounded bg-blue-50 p-2 text-sm dark:bg-blue-900/20">
             <BaseSwitch v-model="localSettings.automation.friend_steal" label="自动偷菜" />
             <BaseSwitch v-model="localSettings.automation.friend_help" label="自动帮忙" />
@@ -677,11 +718,21 @@ async function handleSaveOffline() {
         </div>
 
         <!-- Save Offline Button -->
-        <div class="mt-auto flex justify-end border-t bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/50">
+        <div class="mt-auto flex justify-end gap-2 border-t bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/50">
+          <BaseButton
+            variant="secondary"
+            size="sm"
+            :loading="offlineTesting"
+            :disabled="offlineSaving"
+            @click="handleTestOffline"
+          >
+            测试通知
+          </BaseButton>
           <BaseButton
             variant="primary"
             size="sm"
             :loading="offlineSaving"
+            :disabled="offlineTesting"
             @click="handleSaveOffline"
           >
             保存下线提醒设置

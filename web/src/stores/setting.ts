@@ -4,6 +4,10 @@ import api from '@/api'
 
 export interface AutomationConfig {
   farm?: boolean
+  farm_manage?: boolean
+  farm_water?: boolean
+  farm_weed?: boolean
+  farm_bug?: boolean
   farm_push?: boolean
   land_upgrade?: boolean
   friend?: boolean

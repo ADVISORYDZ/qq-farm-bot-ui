@@ -18,6 +18,7 @@ const { addOrUpdateAccount, deleteAccount } = store;
 const { findAccountByRef, normalizeAccountRef, resolveAccountId } = require('../services/account-resolver');
 const { createModuleLogger } = require('../services/logger');
 const { MiniProgramLoginSession } = require('../services/qrlogin');
+const { sendPushooMessage } = require('../services/push');
 const { getSchedulerRegistrySnapshot } = require('../services/scheduler');
 const { 
     hashPassword: secureHash, 
@@ -137,11 +138,11 @@ function startAdminServer(dataProvider) {
     });
 
     app.use('/api', (req, res, next) => {
-        if (req.path === '/login' || req.path === '/qr/create' || req.path === '/qr/check') return next();
+        if (req.path === '/login' || req.path === '/qr/create' || req.path === '/qr/check' || req.path === '/auth/validate') return next();
         return authRequired(req, res, next);
     });
 
-    app.post('/api/admin/change-password', (req, res) => {
+    app.post('/api/admin/change-password', async (req, res) => {
         const body = req.body || {};
         const oldPassword = String(body.oldPassword || '');
         const newPassword = String(body.newPassword || '');
@@ -150,12 +151,12 @@ function startAdminServer(dataProvider) {
         }
         const storedHash = store.getAdminPasswordHash ? store.getAdminPasswordHash() : '';
         const ok = storedHash
-            ? hashPassword(oldPassword) === storedHash
+            ? await verifyPassword(oldPassword, storedHash)
             : oldPassword === String(CONFIG.adminPassword || '');
         if (!ok) {
             return res.status(400).json({ ok: false, error: '原密码错误' });
         }
-        const nextHash = hashPassword(newPassword);
+        const nextHash = await hashPassword(newPassword);
         if (store.setAdminPasswordHash) {
             store.setAdminPasswordHash(nextHash);
         }
@@ -167,6 +168,11 @@ function startAdminServer(dataProvider) {
     });
 
     app.get('/api/auth/validate', (req, res) => {
+        const token = String(req.headers['x-admin-token'] || '').trim();
+        const valid = !!token && tokens.has(token);
+        if (!valid) {
+            return res.status(401).json({ ok: false, data: { valid: false }, error: 'Unauthorized' });
+        }
         res.json({ ok: true, data: { valid: true } });
     });
 
@@ -326,11 +332,19 @@ function startAdminServer(dataProvider) {
     });
 
     // API: 好友黑名单
-    app.get('/api/friend-blacklist', (req, res) => {
+    app.get('/api/friend-blacklist', async (req, res) => {
         const id = getAccId(req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
-        const list = store.getFriendBlacklist ? store.getFriendBlacklist(id) : [];
-        res.json({ ok: true, data: list });
+        try {
+            if (provider && typeof provider.getFriendBlacklist === 'function') {
+                const list = await provider.getFriendBlacklist(id);
+                return res.json({ ok: true, data: Array.isArray(list) ? list : [] });
+            }
+            const list = store.getFriendBlacklist ? store.getFriendBlacklist(id) : [];
+            return res.json({ ok: true, data: Array.isArray(list) ? list : [] });
+        } catch (e) {
+            return handleApiError(res, e);
+        }
     });
 
     app.post('/api/friend-blacklist/toggle', (req, res) => {
@@ -473,6 +487,45 @@ function startAdminServer(dataProvider) {
             res.json({ ok: true, data: data || {} });
         } catch (e) {
             res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // API: 测试下线提醒推送（不落盘）
+    app.post('/api/settings/offline-reminder/test', async (req, res) => {
+        try {
+            const saved = store.getOfflineReminder ? store.getOfflineReminder() : {};
+            const body = (req.body && typeof req.body === 'object') ? req.body : {};
+            const cfg = { ...(saved || {}), ...body };
+
+            const channel = String(cfg.channel || '').trim().toLowerCase();
+            const endpoint = String(cfg.endpoint || '').trim();
+            const token = String(cfg.token || '').trim();
+            const titleBase = String(cfg.title || '账号下线提醒').trim();
+            const msgBase = String(cfg.msg || '账号下线').trim();
+
+            if (!channel) {
+                return res.status(400).json({ ok: false, error: '推送渠道不能为空' });
+            }
+            if (channel === 'webhook' && !endpoint) {
+                return res.status(400).json({ ok: false, error: 'Webhook 渠道需要填写接口地址' });
+            }
+
+            const now = new Date();
+            const ts = now.toISOString().replace('T', ' ').slice(0, 19);
+            const ret = await sendPushooMessage({
+                channel,
+                endpoint,
+                token,
+                title: `${titleBase}（测试）`,
+                content: `${msgBase}\n\n这是一条下线提醒测试消息。\n时间: ${ts}`,
+            });
+
+            if (!ret || !ret.ok) {
+                return res.status(400).json({ ok: false, error: (ret && ret.msg) || '推送失败', data: ret || {} });
+            }
+            return res.json({ ok: true, data: ret });
+        } catch (e) {
+            return res.status(500).json({ ok: false, error: e.message });
         }
     });
 
@@ -631,6 +684,34 @@ function startAdminServer(dataProvider) {
         };
         const list = provider.getLogs(id, options);
         res.json({ ok: true, data: list });
+    });
+
+    // API: 清空当前账号运行日志
+    app.delete('/api/logs', (req, res) => {
+        const id = getAccId(req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+
+        try {
+            const data = provider.clearLogs(id);
+
+            if (io && provider && typeof provider.getLogs === 'function') {
+                const accountLogs = provider.getLogs(id, { limit: 100 });
+                io.to(`account:${id}`).emit('logs:snapshot', {
+                    accountId: id,
+                    logs: Array.isArray(accountLogs) ? accountLogs : [],
+                });
+
+                const allLogs = provider.getLogs('', { limit: 100 });
+                io.to('account:all').emit('logs:snapshot', {
+                    accountId: 'all',
+                    logs: Array.isArray(allLogs) ? allLogs : [],
+                });
+            }
+
+            res.json({ ok: true, data });
+        } catch (e) {
+            handleApiError(res, e);
+        }
     });
 
     // ============ QR Code Login APIs (无需账号选择) ============

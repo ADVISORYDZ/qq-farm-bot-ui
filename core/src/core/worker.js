@@ -573,6 +573,9 @@ async function handleApiCall(msg) {
             case 'getFriends':
                 result = await getFriendsList();
                 break;
+            case 'getFriendBlacklist':
+                result = require('../models/store').getFriendBlacklist();
+                break;
             case 'getFriendLands':
                 result = await getFriendLandsDetail(args[0]);
                 break;
@@ -592,7 +595,7 @@ async function handleApiCall(msg) {
                 break;
             }
             case 'doFarmOp':
-                result = await runFarmOperation(args[0]); // opType
+                result = await runFarmOperation(args[0], { automated: false }); // opType
                 break;
             case 'getAnalytics': {
                 const { getPlantRankings } = require('../services/analytics');

@@ -28,6 +28,10 @@ const DEFAULT_OFFLINE_REMINDER = {
 const DEFAULT_ACCOUNT_CONFIG = {
     automation: {
         farm: true,
+        farm_manage: true, // 农场打理总开关（浇水/除草/除虫）
+        farm_water: true, // 自动浇水
+        farm_weed: true, // 自动除草
+        farm_bug: true, // 自动除虫
         farm_push: true,   // 收到 LandsNotify 推送时是否立即触发巡田
         land_upgrade: true, // 是否自动升级土地
         friend: true,       // 好友互动总开关
@@ -105,7 +109,7 @@ function normalizeOfflineReminder(input) {
     const rawReloginUrlMode = (src.reloginUrlMode !== undefined && src.reloginUrlMode !== null)
         ? String(src.reloginUrlMode).trim().toLowerCase()
         : DEFAULT_OFFLINE_REMINDER.reloginUrlMode;
-    const reloginUrlMode = new Set(['none', 'qq_link', 'qr_link']).has(rawReloginUrlMode)
+    const reloginUrlMode = new Set(['none', 'qq_link', 'qr_code','all']).has(rawReloginUrlMode)
         ? rawReloginUrlMode
         : DEFAULT_OFFLINE_REMINDER.reloginUrlMode;
     const token = (src.token !== undefined && src.token !== null)

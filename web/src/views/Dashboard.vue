@@ -2,16 +2,19 @@
 import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import { useAccountStore } from '@/stores/account'
 import { useBagStore } from '@/stores/bag'
 import { useStatusStore } from '@/stores/status'
+import { useToastStore } from '@/stores/toast'
 
 const statusStore = useStatusStore()
 const accountStore = useAccountStore()
 const bagStore = useBagStore()
+const toastStore = useToastStore()
 const {
   status,
   logs: statusLogs,
@@ -23,6 +26,9 @@ const { dashboardItems } = storeToRefs(bagStore)
 const logContainer = ref<HTMLElement | null>(null)
 const autoScroll = ref(true)
 const lastBagFetchAt = ref(0)
+const clearLogsLoading = ref(false)
+const clearLogsConfirmVisible = ref(false)
+const clearLogsConfirmLoading = ref(false)
 
 const allLogs = computed(() => {
   const sLogs = statusLogs.value || []
@@ -83,6 +89,7 @@ const events = [
   { label: '土地解锁', value: 'unlock_land' },
   { label: '好友巡查', value: 'friend_cycle' },
   { label: '访问好友', value: 'visit_friend' },
+  { label: '加黑名单', value: '加黑名单' },
 ]
 
 const eventLabelMap: Record<string, string> = Object.fromEntries(
@@ -202,27 +209,33 @@ function updateCountdowns() {
   }
   else {
     localUptime.value++
-    
+
     // 优先显示巡查状态
     if (localFarmInspecting) {
       nextFarmCheck.value = '巡查中...'
-    } else if (localFarmWaiting) {
+    }
+    else if (localFarmWaiting) {
       nextFarmCheck.value = '等待巡查...'
-    } else if (localNextFarmRemainSec > 0) {
+    }
+    else if (localNextFarmRemainSec > 0) {
       localNextFarmRemainSec--
       nextFarmCheck.value = formatDuration(localNextFarmRemainSec)
-    } else {
+    }
+    else {
       nextFarmCheck.value = '等待巡查...'
     }
 
     if (localFriendInspecting) {
       nextFriendCheck.value = '巡查中...'
-    } else if (localFriendWaiting) {
+    }
+    else if (localFriendWaiting) {
       nextFriendCheck.value = '等待巡查...'
-    } else if (localNextFriendRemainSec > 0) {
+    }
+    else if (localNextFriendRemainSec > 0) {
       localNextFriendRemainSec--
       nextFriendCheck.value = formatDuration(localNextFriendRemainSec)
-    } else {
+    }
+    else {
       nextFriendCheck.value = '等待巡查...'
     }
   }
@@ -367,6 +380,32 @@ function onLogFilterChange() {
 
 function onLogSearchTrigger() {
   refresh(true)
+}
+
+async function onClearLogs() {
+  if (!currentAccountId.value || clearLogsLoading.value)
+    return
+  clearLogsConfirmVisible.value = true
+}
+
+async function executeClearLogs() {
+  if (!currentAccountId.value || clearLogsLoading.value)
+    return
+  try {
+    clearLogsConfirmLoading.value = true
+    clearLogsLoading.value = true
+    const ret = await statusStore.clearLogs(currentAccountId.value)
+    toastStore.success(`已清空 ${Number(ret?.cleared) || 0} 条运行日志`)
+    clearLogsConfirmVisible.value = false
+    await refresh(true)
+  }
+  catch (e: any) {
+    toastStore.error(e?.message || '清空运行日志失败')
+  }
+  finally {
+    clearLogsConfirmLoading.value = false
+    clearLogsLoading.value = false
+  }
 }
 
 watch(currentAccountId, () => {
@@ -612,10 +651,20 @@ useIntervalFn(updateCountdowns, 1000)
               >
                 <div class="i-carbon-search" />
               </BaseButton>
+
+              <BaseButton
+                variant="danger"
+                size="sm"
+                :loading="clearLogsLoading"
+                @click="onClearLogs"
+              >
+                <div class="i-carbon-trash-can mr-1" />
+                清空日志
+              </BaseButton>
             </div>
           </div>
 
-          <div ref="logContainer" class="max-h-[50vh] min-h-0 flex-1 overflow-y-auto rounded bg-gray-50 p-4 text-sm leading-relaxed font-mono md:max-h-none dark:bg-gray-900" @scroll="onLogScroll">
+          <div ref="logContainer" class="max-h-[50vh] min-h-0 flex-1 overflow-y-auto rounded bg-gray-50 p-4 text-sm leading-relaxed md:max-h-none dark:bg-gray-900" @scroll="onLogScroll">
             <div v-if="!allLogs.length" class="py-8 text-center text-gray-400">
               暂无日志
             </div>
@@ -643,7 +692,7 @@ useIntervalFn(updateCountdowns, 1000)
                 <div class="i-carbon-sprout text-lg text-green-500" />
                 <span>农场</span>
               </div>
-              <div class="text-lg font-bold font-mono">
+              <div class="text-lg font-bold">
                 {{ nextFarmCheck }}
               </div>
             </div>
@@ -652,7 +701,7 @@ useIntervalFn(updateCountdowns, 1000)
                 <div class="i-carbon-user-multiple text-lg text-blue-500" />
                 <span>好友</span>
               </div>
-              <div class="text-lg font-bold font-mono">
+              <div class="text-lg font-bold">
                 {{ nextFriendCheck }}
               </div>
             </div>
@@ -696,5 +745,14 @@ useIntervalFn(updateCountdowns, 1000)
         </div>
       </div>
     </div>
+
+    <ConfirmModal
+      :show="clearLogsConfirmVisible"
+      :loading="clearLogsConfirmLoading"
+      title="确认清空日志"
+      message="确定清空当前账号的运行日志吗？此操作不可恢复。"
+      @confirm="executeClearLogs"
+      @cancel="!clearLogsConfirmLoading && (clearLogsConfirmVisible = false)"
+    />
   </div>
 </template>

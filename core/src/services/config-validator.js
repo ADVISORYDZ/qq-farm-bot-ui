@@ -47,6 +47,10 @@ const AUTOMATION_SCHEMA = {
     type: 'object',
     properties: {
         farm: { type: 'boolean', default: true },
+        farm_manage: { type: 'boolean', default: true },
+        farm_water: { type: 'boolean', default: true },
+        farm_weed: { type: 'boolean', default: true },
+        farm_bug: { type: 'boolean', default: true },
         farm_push: { type: 'boolean', default: true },
         land_upgrade: { type: 'boolean', default: true },
         friend: { type: 'boolean', default: true },

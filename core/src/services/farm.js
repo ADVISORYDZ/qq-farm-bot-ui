@@ -132,7 +132,7 @@ async function fertilizeOrganicLoop(landIds) {
         }
 
         idx = (idx + 1) % ids.length;
-        await sleep(100);
+        await sleep(1000);
     }
 
     return successCount;
@@ -890,7 +890,7 @@ async function checkFarm() {
 
     try {
         // 复用手动操作逻辑
-        const result = await runFarmOperation('all');
+        const result = await runFarmOperation('all', { automated: true });
         isFirstFarmCheck = false;
         return !!(result && result.hadWork);
     } catch (err) {
@@ -905,7 +905,8 @@ async function checkFarm() {
  * 手动/自动执行农场操作
  * @param {string} opType - 'all', 'harvest', 'clear', 'plant', 'upgrade'
  */
-async function runFarmOperation(opType) {
+async function runFarmOperation(opType, options = {}) {
+    const isAutomated = !!options.automated;
     const landsReply = await getAllLands();
     if (!landsReply.lands || landsReply.lands.length === 0) {
         if (opType !== 'all') {
@@ -934,9 +935,13 @@ async function runFarmOperation(opType) {
 
     // 执行除草/虫/水 (使用并发控制)
     if (opType === 'all' || opType === 'clear') {
+        const canAutoManageFarm = !isAutomated || !!isAutomationOn('farm_manage');
+        const enableAutoWater = !isAutomated || !!isAutomationOn('farm_water');
+        const enableAutoWeed = !isAutomated || !!isAutomationOn('farm_weed');
+        const enableAutoBug = !isAutomated || !!isAutomationOn('farm_bug');
         const farmOperations = [];
         
-        if (status.needWeed.length > 0) {
+        if (canAutoManageFarm && enableAutoWeed && status.needWeed.length > 0) {
             farmOperations.push({
                 type: 'weed',
                 landIds: status.needWeed,
@@ -947,7 +952,7 @@ async function runFarmOperation(opType) {
                 }
             });
         }
-        if (status.needBug.length > 0) {
+        if (canAutoManageFarm && enableAutoBug && status.needBug.length > 0) {
             farmOperations.push({
                 type: 'bug',
                 landIds: status.needBug,
@@ -958,7 +963,7 @@ async function runFarmOperation(opType) {
                 }
             });
         }
-        if (status.needWater.length > 0) {
+        if (canAutoManageFarm && enableAutoWater && status.needWater.length > 0) {
             farmOperations.push({
                 type: 'water',
                 landIds: status.needWater,
