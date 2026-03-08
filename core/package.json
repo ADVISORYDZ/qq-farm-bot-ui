@@ -39,7 +39,8 @@
       "../web/dist/**/*",
       "src/gameConfig/**/*",
       "src/proto/**/*",
-      "share.txt"
+      "share.txt",
+      "src/assets/**/*"
     ]
   }
 }
