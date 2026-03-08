@@ -237,10 +237,10 @@ function normalizeAccountConfig(input, fallback = accountFallbackConfig) {
 
     if (Array.isArray(src.friendBlacklist)) {
         cfg.friendBlacklist = src.friendBlacklist.map(Number).filter(n => Number.isFinite(n) && n > 0);
+    }
 
     if (Array.isArray(src.friendStealBlockSeedIds)) {
         cfg.friendStealBlockSeedIds = src.friendStealBlockSeedIds.map(Number).filter(n => Number.isFinite(n) && n > 0);
-    }
     }
 
     return cfg;
@@ -445,10 +445,10 @@ function applyConfigSnapshot(snapshot, options = {}) {
 
     if (Array.isArray(cfg.friendBlacklist)) {
         next.friendBlacklist = cfg.friendBlacklist.map(Number).filter(n => Number.isFinite(n) && n > 0);
+    }
 
     if (Array.isArray(cfg.friendStealBlockSeedIds)) {
         next.friendStealBlockSeedIds = cfg.friendStealBlockSeedIds.map(Number).filter(n => Number.isFinite(n) && n > 0);
-    }
     }
 
     if (cfg.ui && typeof cfg.ui === 'object') {
