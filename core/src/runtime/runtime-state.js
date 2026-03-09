@@ -42,7 +42,6 @@ function createRuntimeState(options) {
             intervals: store.getIntervals(accountId),
             friendQuietHours: store.getFriendQuietHours(accountId),
             friendBlacklist: store.getFriendBlacklist(accountId),
-            friendStealBlockSeedIds: store.getFriendStealBlockSeedIds(accountId),
             __revision: configRevision,
         };
     }

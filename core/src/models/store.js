@@ -83,7 +83,6 @@ const DEFAULT_ACCOUNT_CONFIG = {
         end: '07:00',
     },
     friendBlacklist: [],
-    friendStealBlockSeedIds: [],
 };
 const ALLOWED_AUTOMATION_KEYS = new Set(Object.keys(DEFAULT_ACCOUNT_CONFIG.automation));
 
@@ -212,8 +211,9 @@ function normalizeStealPlantBlacklist(input, fallback = DEFAULT_STEAL_PLANT_BLAC
 }
 
 function cloneAccountConfig(base = DEFAULT_ACCOUNT_CONFIG) {
-    const srcAutomation = (base && base.automation && typeof base.automation === 'object')
-        ? base.automation
+    const srcBase = (base && typeof base === 'object') ? base : {};
+    const srcAutomation = (srcBase.automation && typeof srcBase.automation === 'object')
+        ? srcBase.automation
         : {};
     const automation = { ...DEFAULT_ACCOUNT_CONFIG.automation };
     for (const key of Object.keys(automation)) {
@@ -228,19 +228,16 @@ function cloneAccountConfig(base = DEFAULT_ACCOUNT_CONFIG) {
         if (srcAutomation[key] !== undefined) automation[key] = srcAutomation[key];
     }
 
-    const rawBlacklist = Array.isArray(base.friendBlacklist) ? base.friendBlacklist : [];
-    const rawStealBlockSeedIds = Array.isArray(base.friendStealBlockSeedIds) ? base.friendStealBlockSeedIds : [];
+    const rawBlacklist = Array.isArray(srcBase.friendBlacklist) ? srcBase.friendBlacklist : [];
     return {
-        ...base,
         automation,
-        intervals: { ...(base.intervals || DEFAULT_ACCOUNT_CONFIG.intervals) },
-        friendQuietHours: { ...(base.friendQuietHours || DEFAULT_ACCOUNT_CONFIG.friendQuietHours) },
+        intervals: { ...(srcBase.intervals || DEFAULT_ACCOUNT_CONFIG.intervals) },
+        friendQuietHours: { ...(srcBase.friendQuietHours || DEFAULT_ACCOUNT_CONFIG.friendQuietHours) },
         friendBlacklist: rawBlacklist.map(Number).filter(n => Number.isFinite(n) && n > 0),
-        friendStealBlockSeedIds: rawStealBlockSeedIds.map(Number).filter(n => Number.isFinite(n) && n > 0),
-        plantingStrategy: ALLOWED_PLANTING_STRATEGIES.includes(String(base.plantingStrategy || ''))
-            ? String(base.plantingStrategy)
+        plantingStrategy: ALLOWED_PLANTING_STRATEGIES.includes(String(srcBase.plantingStrategy || ''))
+            ? String(srcBase.plantingStrategy)
             : DEFAULT_ACCOUNT_CONFIG.plantingStrategy,
-        preferredSeedId: Math.max(0, Number.parseInt(base.preferredSeedId, 10) || 0),
+        preferredSeedId: Math.max(0, Number.parseInt(srcBase.preferredSeedId, 10) || 0),
     };
 }
 
@@ -302,9 +299,6 @@ function normalizeAccountConfig(input, fallback = accountFallbackConfig) {
         cfg.friendBlacklist = src.friendBlacklist.map(Number).filter(n => Number.isFinite(n) && n > 0);
     }
 
-    if (Array.isArray(src.friendStealBlockSeedIds)) {
-        cfg.friendStealBlockSeedIds = src.friendStealBlockSeedIds.map(Number).filter(n => Number.isFinite(n) && n > 0);
-    }
 
     return cfg;
 }
@@ -458,7 +452,6 @@ function getConfigSnapshot(accountId) {
         intervals: { ...cfg.intervals },
         friendQuietHours: { ...cfg.friendQuietHours },
         friendBlacklist: [...(cfg.friendBlacklist || [])],
-        friendStealBlockSeedIds: [...(cfg.friendStealBlockSeedIds || [])],
         ui: { ...globalConfig.ui },
         qrLogin: normalizeQrLoginConfig(globalConfig.qrLogin),
     };
@@ -517,9 +510,6 @@ function applyConfigSnapshot(snapshot, options = {}) {
         next.friendBlacklist = cfg.friendBlacklist.map(Number).filter(n => Number.isFinite(n) && n > 0);
     }
 
-    if (Array.isArray(cfg.friendStealBlockSeedIds)) {
-        next.friendStealBlockSeedIds = cfg.friendStealBlockSeedIds.map(Number).filter(n => Number.isFinite(n) && n > 0);
-    }
 
     if (cfg.ui && typeof cfg.ui === 'object') {
         const theme = String(cfg.ui.theme || '').toLowerCase();
@@ -607,17 +597,6 @@ function setFriendBlacklist(accountId, list) {
     return [...next.friendBlacklist];
 }
 
-function getFriendStealBlockSeedIds(accountId) {
-    return [...(getAccountConfigSnapshot(accountId).friendStealBlockSeedIds || [])];
-}
-
-function setFriendStealBlockSeedIds(accountId, list) {
-    const current = getAccountConfigSnapshot(accountId);
-    const next = normalizeAccountConfig(current, accountFallbackConfig);
-    next.friendStealBlockSeedIds = Array.isArray(list) ? list.map(Number).filter(n => Number.isFinite(n) && n > 0) : [];
-    setAccountConfigSnapshot(accountId, next);
-    return [...next.friendStealBlockSeedIds];
-}
 
 function getUI() {
     return { ...globalConfig.ui };
@@ -732,8 +711,6 @@ module.exports = {
     getFriendQuietHours,
     getFriendBlacklist,
     setFriendBlacklist,
-    getFriendStealBlockSeedIds,
-    setFriendStealBlockSeedIds,
     getUI,
     setUITheme,
     getOfflineReminder,

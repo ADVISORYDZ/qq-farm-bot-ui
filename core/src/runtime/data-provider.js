@@ -130,7 +130,6 @@ function createDataProvider(options) {
                 preferredSeedId,
                 intervals: body.intervals,
                 friendQuietHours: body.friendQuietHours,
-                friendStealBlockSeedIds: body.friendStealBlockSeedIds,
             };
             store.applyConfigSnapshot(snapshot, { accountId });
             const rev = nextConfigRevision();
@@ -140,7 +139,6 @@ function createDataProvider(options) {
                 preferredSeed: store.getPreferredSeed(accountId),
                 intervals: store.getIntervals(accountId),
                 friendQuietHours: store.getFriendQuietHours(accountId),
-                friendStealBlockSeedIds: store.getFriendStealBlockSeedIds(accountId),
                 configRevision: rev,
             };
         },

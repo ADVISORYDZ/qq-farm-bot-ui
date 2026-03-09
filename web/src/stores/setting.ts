@@ -62,7 +62,6 @@ export interface QrLoginConfig {
 export interface SettingsState {
   plantingStrategy: string
   preferredSeedId: number
-  friendStealBlockSeedIds: number[]
   intervals: IntervalsConfig
   friendQuietHours: FriendQuietHoursConfig
   automation: AutomationConfig
@@ -75,7 +74,6 @@ export const useSettingStore = defineStore('setting', () => {
   const settings = ref<SettingsState>({
     plantingStrategy: 'preferred',
     preferredSeedId: 0,
-    friendStealBlockSeedIds: [],
     intervals: {},
     friendQuietHours: { enabled: false, start: '23:00', end: '07:00' },
     automation: {},
@@ -110,7 +108,6 @@ export const useSettingStore = defineStore('setting', () => {
         const d = data.data
         settings.value.plantingStrategy = d.strategy || 'preferred'
         settings.value.preferredSeedId = d.preferredSeed || 0
-        settings.value.friendStealBlockSeedIds = Array.isArray(d.friendStealBlockSeedIds) ? d.friendStealBlockSeedIds.map((v: any) => Number(v)).filter((v: number) => Number.isFinite(v) && v > 0) : []
         settings.value.intervals = d.intervals || {}
         settings.value.friendQuietHours = d.friendQuietHours || { enabled: false, start: '23:00', end: '07:00' }
         settings.value.automation = d.automation || {}
@@ -147,7 +144,6 @@ export const useSettingStore = defineStore('setting', () => {
       const settingsPayload = {
         plantingStrategy: newSettings.plantingStrategy,
         preferredSeedId: newSettings.preferredSeedId,
-        friendStealBlockSeedIds: newSettings.friendStealBlockSeedIds,
         intervals: newSettings.intervals,
         friendQuietHours: newSettings.friendQuietHours,
       }

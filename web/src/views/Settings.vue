@@ -88,7 +88,6 @@ function normalizeStealPlantBlacklist(input: unknown) {
 const localSettings = ref({
   plantingStrategy: 'preferred',
   preferredSeedId: 0,
-  friendStealBlockSeedIds: [] as number[],
   intervals: { farmMin: 2, farmMax: 2, friendMin: 10, friendMax: 10 },
   friendQuietHours: { enabled: false, start: '23:00', end: '07:00' },
   automation: {
@@ -202,7 +201,6 @@ function syncLocalSettings() {
     localSettings.value = JSON.parse(JSON.stringify({
       plantingStrategy: settings.value.plantingStrategy,
       preferredSeedId: settings.value.preferredSeedId,
-      friendStealBlockSeedIds: settings.value.friendStealBlockSeedIds,
       intervals: settings.value.intervals,
       friendQuietHours: settings.value.friendQuietHours,
       automation: settings.value.automation,
@@ -275,14 +273,6 @@ function syncLocalSettings() {
       }
     }
 
-    if (!Array.isArray(localSettings.value.friendStealBlockSeedIds)) {
-      localSettings.value.friendStealBlockSeedIds = []
-    }
-    else {
-      localSettings.value.friendStealBlockSeedIds = localSettings.value.friendStealBlockSeedIds
-        .map(v => Number(v))
-        .filter(v => Number.isFinite(v) && v > 0)
-    }
     localSettings.value.automation.fertilizer_land_types = normalizeFertilizerLandTypes(localSettings.value.automation.fertilizer_land_types)
     localSettings.value.automation.friend_steal_blacklist = normalizeStealPlantBlacklist(localSettings.value.automation.friend_steal_blacklist)
 
@@ -411,28 +401,6 @@ const preferredSeedOptions = computed(() => {
   return options
 })
 
-const stealBlockSeedOptions = computed(() => {
-  return (seeds.value || []).map(seed => ({
-    label: `${seed.name}`,
-    value: Number(seed.seedId),
-  }))
-})
-
-const stealBlockSeedSet = computed(() => {
-  return new Set((localSettings.value.friendStealBlockSeedIds || []).map(v => Number(v)))
-})
-
-function toggleStealBlockSeed(seedId: number) {
-  const id = Number(seedId)
-  if (!Number.isFinite(id) || id <= 0)
-    return
-  const current = new Set((localSettings.value.friendStealBlockSeedIds || []).map(v => Number(v)))
-  if (current.has(id))
-    current.delete(id)
-  else
-    current.add(id)
-  localSettings.value.friendStealBlockSeedIds = [...current].sort((a, b) => a - b)
-}
 
 const analyticsSortByMap: Record<string, string> = {
   max_exp: 'exp',
@@ -735,25 +703,6 @@ async function handleTestOffline() {
             <BaseSwitch v-model="localSettings.automation.friend_help" label="自动帮忙" :disabled="friendDisabled" />
             <BaseSwitch v-model="localSettings.automation.friend_bad" label="自动捣乱" :disabled="friendDisabled" />
             <BaseSwitch v-model="localSettings.automation.friend_help_exp_limit" label="经验上限停止帮忙" :disabled="friendDisabled" />
-            <div v-if="localSettings.automation.friend_steal" class="w-full border border-blue-100 rounded bg-white/70 p-2 dark:border-blue-800/60 dark:bg-gray-900/30">
-              <div class="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                不偷作物（点击切换）
-              </div>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="seed in stealBlockSeedOptions"
-                  :key="`steal-block-${seed.value}`"
-                  type="button"
-                  class="border rounded px-2 py-1 text-xs transition"
-                  :class="stealBlockSeedSet.has(seed.value)
-                    ? 'border-orange-400 bg-orange-100 text-orange-700 dark:border-orange-500/80 dark:bg-orange-900/30 dark:text-orange-300'
-                    : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'"
-                  @click="toggleStealBlockSeed(seed.value)"
-                >
-                  {{ seed.label }}
-                </button>
-              </div>
-            </div>
           </div>
           <!-- Steal Crop Blacklist + Fertilizer -->
           <div class="space-y-3">
