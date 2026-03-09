@@ -323,7 +323,7 @@ function formatInteractTime(timestamp: number) {
 
     <div v-if="status?.connection?.connected && currentAccountId" class="mb-6 rounded-lg bg-white p-4 shadow dark:bg-gray-800">
       <div
-        class="mb-3 flex cursor-pointer select-none flex-col gap-3 lg:flex-row lg:items-center lg:justify-between hover:opacity-90"
+        class="mb-3 flex flex-col cursor-pointer select-none gap-3 lg:flex-row lg:items-center lg:justify-between hover:opacity-90"
         @click="interactCollapsed = !interactCollapsed"
       >
         <div class="flex items-center gap-2">
@@ -350,7 +350,7 @@ function formatInteractTime(timestamp: number) {
             {{ item.label }}
           </button>
           <button
-            class="rounded bg-gray-100 px-3 py-1.5 text-xs text-gray-600 transition dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-60"
+            class="rounded bg-gray-100 px-3 py-1.5 text-xs text-gray-600 transition disabled:cursor-not-allowed dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-60 dark:hover:bg-gray-600"
             :disabled="interactLoading"
             @click.stop="refreshInteractRecords"
           >
