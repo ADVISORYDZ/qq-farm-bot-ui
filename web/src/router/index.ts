@@ -2,6 +2,7 @@ import { useStorage } from '@vueuse/core'
 import axios from 'axios'
 import NProgress from 'nprogress'
 import { createRouter, createWebHistory } from 'vue-router'
+import { withAppBase } from '@/utils/base'
 import { menuRoutes } from './menu'
 import 'nprogress/nprogress.css'
 
@@ -14,7 +15,7 @@ async function ensureTokenValid() {
 
   // 首先检查是否禁用了密码认证
   try {
-    const authCheckResponse = await axios.get('/api/auth/validate', {
+    const authCheckResponse = await axios.get(withAppBase('api/auth/validate'), {
       headers: token ? { 'x-admin-token': token } : {},
       timeout: 6000,
     })
